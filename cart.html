@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+<meta charset="UTF-8" />
+
+<link href="/css/reset.css" th:href="@{/css/reset.css}" rel="stylesheet" />
+<link href="/css/style.css" th:href="@{/css/style.css}" rel="stylesheet" />
+
+<title>JUNOUS</title>
+</head>
+<body>
+
+<header th:insert="fragments/page_header::pageHeader"></header>
+
+<main>
+
+	<div class="container cart">
+		<h2>カート</h2>
+		<div class="noData" th:if="${cart == null || cart.size() == 0}">
+			<p class="info">カート情報はありません。</p>
+		</div>
+		<table class="cart" th:if="${cart != null && cart.size() != 0}">
+			<tr>
+				<th>選択</th><th>画像</th><th>商品名</th><th>価格(円)</th><th>個数</th><th>小計(円)</th>
+			</tr>
+			<tr id="cartContents" th:each="item: ${cart}">
+				<td>
+					<input type="checkbox" class="checkbox" th:value="${item.id}" />
+				</td>
+				<td class="image">
+					<img class="itemImage" th:src="@{${item.image}}" th:alt="${item.productName}" />
+				</td>
+				<td th:text="${item.productName}" />
+				<td class="number" th:text="${item.price}" />
+				<td class="number cartProductCount" th:text="${item.productCount}" />
+				<td class="number cartSubTotal" th:text="${item.subTotal}">
+			</tr>
+			<tr>
+				<td class="totalArea"></td>
+				<td class="totalArea"></td>
+				<td class="totalArea">合計(円)</td>
+				<td class="totalArea"></td>
+				<td class="totalArea" id="cartTotalCount" />
+				<td class="totalArea" id="cartTotalPrice" />
+			</tr>
+		</table>
+		<div class="buttonArea" th:if="${cart != null && cart.size() != 0}">
+			<button class="deleteBtn" id="deleteCart">削除</button>
+			<button id="purchaseBtn">購入</button>
+			<button class="hidden" id="hiddenLoginFlag" th:value="${loginSession.loginFlag}" />
+		</div>
+	</div>
+</main>
+<script>
+$(() => {
+	calcTotalArea();
+	changeDeleteBtnDisabled(true);	
+	$('.checkbox').on('change', checkDeleteBtnDisabled);
+	$('#deleteCart').on('click', deleteCart);
+	$('#purchaseBtn').on('click', purchaseBtn);
+});
+
+/**
+ * 合計個数、合計金額を計算する。
+ * @param なし
+ * @return なし
+ */
+function calcTotalArea() {
+	let cartTotalCount = 0;
+	$('.cartProductCount').each(function(index, element) {
+		cartTotalCount += parseInt($(element).text());
+	});
+	$('#cartTotalCount').text(cartTotalCount);
+	let cartTotalPrice = 0;
+	$('.cartSubTotal').each(function(index, element) {
+		cartTotalPrice += parseInt($(element).text());
+	});
+	$('#cartTotalPrice').text(cartTotalPrice);
+}
+
+/**
+ * 削除ボタンの活性非活性を変更する。
+ * @param 非活性にする場合true、非活性にしない場合false
+ * @return なし
+ */
+function changeDeleteBtnDisabled(isDisabled) {
+	$('#deleteCart').prop('disabled', isDisabled);
+}
+
+/**
+ * 削除ボタンを活性にするか非活性にするか判定する。
+ * @param なし
+ * @returns なし
+ */
+let checkDeleteBtnDisabled = () => {
+	if ($('input[class="checkbox"]:checked').length) {
+		changeDeleteBtnDisabled(false);
+	} else {
+		changeDeleteBtnDisabled(true);
+	}
+}
+
+/**
+ * 選択されたカート情報を削除する。
+ * @param なし
+ * @returns なし
+ */
+let deleteCart = () => {
+	let idList = [];
+	$('input[class="checkbox"]:checked').each(function(index, element) {
+		idList.push($(element).val());
+	});
+	$.ajax({
+		type: 'POST',
+		url: '/leo/cart/delete',
+		data: JSON.stringify({'idArg': idList}),
+		contentType: 'application/json',
+		datatype: 'json',
+		scriptCharset: 'utf-8'
+	})
+	.then(() => {
+		$(':checked').parent().parent().remove();
+		calcTotalArea();
+		changeDeleteBtnDisabled(true);
+		if(!$('#cartContents').length) {
+			window.location.href = '/leo/cart/';
+		}
+	}, () => {
+		alert('Error: ajax connection failed.');
+	});	
+};
+
+/**
+ * 購入ボタン押下時にログインの判定をする。
+ * @param なし
+ * @returns なし
+ */
+let purchaseBtn = () => {
+	let loginedBySession = $('#hiddenLoginFlag').val();
+	if($('#hiddenUserName').attr('value') || loginedBySession == "true") {
+		window.location.href = '/leo/settlement/';
+	} else {
+		alert('ログインしてください。');
+	}
+}
+
+</script>
+</body>
+</html>
